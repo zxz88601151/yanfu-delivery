@@ -125,13 +125,14 @@ const uploadLimiter = rateLimit({ ..._limiterOptions, max: parseInt(process.env.
 app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
 app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: true, limit: '1mb' }));
+const { COPYRIGHT } = require("./config/constants");app.use((req, res, next) => {  res.setHeader("X-Copyright", "(C) Xu Yaping All Rights Reserved");  res.setHeader("X-Copyright-Contact", "QQ: 273442662");  next();});
 
 // ========== 健康检查 ==========
 app.get('/health', async (req, res) => {
   const { pool } = require('./config/database');
   try {
     const [r] = await pool.query('SELECT 1 AS ok');
-    res.json({ status: 'ok', database: 'connected', uptime: process.uptime(), timestamp: new Date().toISOString() });
+    res.json({ status: "ok", database: "connected", copyright: COPYRIGHT.TEXT, contact: "QQ: " + COPYRIGHT.CONTACT_QQ, uptime: process.uptime(), timestamp: new Date().toISOString() });
   } catch (e) {
     res.status(503).json({ status: 'degraded', database: 'disconnected', error: e.message, timestamp: new Date().toISOString() });
   }
