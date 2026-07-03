@@ -180,5 +180,4 @@ npm test
 详见 [CHANGELOG.md](./CHANGELOG.md)
 - **v1.0.0-rc1** (2026-07-03): 钱包系统 · 自动结算 · PDF 报表 · 高德地图集成 · 测试框架 · Docker 部署 · CI 配置
 ## 📮 联系方式
-项目作者：中哥
-项目状态：Release Candidate (RC)
+QQ：273442662
