@@ -12,9 +12,9 @@ services:
       - DB_HOST=db
       - DB_PORT=3306
       - DB_USER=kuailv
-      - DB_PASSWORD=Yanfu@2026!Secure
+      - DB_PASSWORD=[DBCONFIG]
       - DB_NAME=kuailv
-      - JWT_SECRET=kuailv_super_secret_jwt_key_2026_production_32chars!!
+      - JWT_SECRET=[JWTCONFIG]
       - JWT_EXPIRES_IN=259200
       - AMAP_REST_KEY=${AMAP_REST_KEY:-}
       - AMAP_PRIVATE_KEY=${AMAP_PRIVATE_KEY:-}
@@ -38,7 +38,7 @@ services:
       - MYSQL_ROOT_PASSWORD=root123
       - MYSQL_DATABASE=kuailv
       - MYSQL_USER=kuailv
-      - MYSQL_PASSWORD=Yanfu@2026!Secure
+      - MYSQL_PASSWORD=[DBCONFIG]
     volumes:
       - mysql_data:/var/lib/mysql
       - ./migrations:/docker-entrypoint-initdb.d

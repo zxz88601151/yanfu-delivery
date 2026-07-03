@@ -24,7 +24,7 @@ function check() {
   // Get metrics
   const loadAvg = parseFloat(getMetric("cat /proc/loadavg | awk '{print $1}'")) || 0;
   const freeMem = parseInt(getMetric("free -m | awk '/^Mem:/{print $7}'")) || 0;
-  const dbConns = parseInt(getMetric("mysql -uroot -p'Yanfu@2026!Secure' -N -e 'SHOW STATUS LIKE \"Threads_connected\";' 2>/dev/null | awk '{print $2}'")) || 0;
+  const dbConns = parseInt(getMetric("mysql -uroot -p'[DBCONFIG]' -N -e 'SHOW STATUS LIKE \"Threads_connected\";' 2>/dev/null | awk '{print $2}'")) || 0;
   const nodeMem = parseInt(getMetric("ps aux | grep 'node.*kuailv' | grep -v grep | awk '{print $6}'")) / 1024 || 0;
   const pm2Status = getMetric("pm2 show 4 2>/dev/null | grep 'status' | head -1 | awk '{print $4}'");
 

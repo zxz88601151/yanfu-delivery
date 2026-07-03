@@ -6,7 +6,7 @@ const mysql = require('mysql2/promise');
 
 const DB_CONFIG = {
   host: 'localhost', user: 'root',
-  password: 'Yanfu@2026!Secure', database: 'kuailv'
+  password: '[DBCONFIG]', database: 'kuailv'
 };
 
 async function main() {
