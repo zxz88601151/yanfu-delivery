@@ -1,0 +1,55 @@
+{
+  "name": "yanfu-backend",
+  "version": "1.0.0",
+  "description": "盐阜配送平台后端API",
+  "main": "app.js",
+  "scripts": {
+    "start": "node app.js",
+    "dev": "node app.js",
+    "test": "jest",
+    "migrate": "mysql -u root -p kuailv < migrations/003_production_migration.sql",
+    "test:watch": "jest --watch"
+  },
+  "keywords": [
+    "delivery",
+    "express",
+    "mysql"
+  ],
+  "author": "zhangxingzhong",
+  "license": "MIT",
+  "dependencies": {
+    "@turf/turf": "^7.3.5",
+    "alipay-sdk": "^4.14.0",
+    "autocannon": "^8.0.0",
+    "bcrypt": "^6.0.0",
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.5",
+    "cos-nodejs-sdk-v5": "^2.15.4",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.0",
+    "express-rate-limit": "^7.2.0",
+    "express-ws": "^5.0.2",
+    "helmet": "^7.1.0",
+    "ioredis": "^5.4.1",
+    "joi": "^18.2.1",
+    "jsonwebtoken": "^9.0.2",
+    "morgan": "^1.10.0",
+    "multer": "^1.4.5-lts.1",
+    "mysql2": "^3.11.0",
+    "node-cache": "^5.1.2",
+    "node-cron": "^4.4.1",
+    "node-ssh": "^13.2.1",
+    "pdfkit": "^0.19.1",
+    "sharp": "^0.34.5",
+    "socket.io": "^4.8.3",
+    "ssh2": "^1.17.0",
+    "ttc2ttf": "^1.0.96",
+    "uuid": "^10.0.0",
+    "wechatpay-node-v3": "^2.2.1",
+    "winston": "^3.19.0"
+  },
+  "devDependencies": {
+    "jest": "^30.4.2",
+    "supertest": "^7.2.2"
+  }
+}

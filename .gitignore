@@ -1,0 +1,36 @@
+# Node
+node_modules/
+npm-debug.log*
+.env
+
+# Logs
+logs/
+*.log
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Database backups
+*.sql.gz
+backups/
+
+# Temp test files
+/tmp/
+/test_amap.js
+/test_amap2.js
+
+# Docker
+.docker/
+
+# PM2
+.pm2/
+
+# Python (if any)
+__pycache__/
+*.pyc

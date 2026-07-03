@@ -1,0 +1,256 @@
+require('dotenv').config({ path: require('path').join(__dirname, '.env') });
+const express = require('express');
+const http = require('http');
+const cors = require('cors');
+const helmet = require('helmet');
+const morgan = require('morgan');
+const { initDatabase } = require('./config/database');
+const { initWebSocket } = require('./services/websocket');
+const { globalErrorHandler, setupUnhandledRejectionHandler } = require('./middleware/errorHandler');
+
+// 导入路由
+const authRoutes = require('./routes/auth');
+const riderRoutes = require('./routes/rider');
+const riderPoolRoutes = require('./routes/rider_pool');  // 三池派单系统
+const etaRoutes = require('./routes/eta');  // 智能ETA系统
+const prepTimeRoutes = require('./routes/prep_time');  // 出餐时间管理
+const merchantRoutes = require('./routes/merchant');
+const userRoutes = require('./routes/user');
+const adminRoutes = require('./routes/admin');
+const uploadRoutes = require('./routes/upload');
+const reviewRoutes = require('./routes/review');
+const refundRoutes = require('./routes/refund');
+const paymentRoutes = require('./routes/payment');
+const analyticsRoutes = require('./routes/analytics');
+const ticketRoutes = require('./routes/ticket');
+const versionRoutes = require('./routes/version');
+const publicRoutes = require('./routes/public');
+const riderMapRoutes = require('./routes/rider-map');  // 骑手地图数据联动
+
+const app = express();
+const PORT = process.env.PORT || 3001;
+
+// [P0修复] 信任Nginx代理头，修复 X-Forwarded-For 导致的rate-limit 500错误
+// 必须在 rate-limit/helmet/morgan 等所有中间件之前设置
+// 设为数字1表示信任第一跳代理 (Nginx)，比 true 更安全
+app.set('trust proxy', 1);
+
+// ========== 启动检查 ==========
+if (!process.env.JWT_SECRET || process.env.JWT_SECRET.length < 32) {
+  console.error('FATAL: JWT_SECRET 未设置或长度不足32位，请在 .env 文件中配置');
+  process.exit(1);
+}
+
+// ========== 安全响应头 (Helmet) ==========
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: 'cross-origin' },
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'"],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      imgSrc: ["'self'", 'data:', 'blob:'],
+      connectSrc: ["'self'", 'ws:', 'wss:'],
+    },
+  },
+}));
+
+// ========== CORS 配置（白名单模式） ==========
+const allowedOrigins = (process.env.ALLOWED_ORIGINS || '').split(',').map(s => s.trim()).filter(Boolean);
+const isDevOrWildcard = !allowedOrigins.length || (allowedOrigins.length === 1 && allowedOrigins[0] === '*');
+
+const corsOptions = {
+  origin: function (origin, callback) {
+    // 允许无 origin 的请求（如服务端调用、移动端 App）
+    if (!origin) {
+      return callback(null, true);
+    }
+    if (isDevOrWildcard) {
+      // 开发模式或未配置具体域名时允许所有来源
+      return callback(null, true);
+    }
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+    console.warn(`[CORS] 拒绝来源: ${origin}`);
+    return callback(new Error('Not allowed by CORS'));
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin', 'X-Token', 'Cache-Control', 'Pragma'],
+  exposedHeaders: ['Content-Length', 'X-Request-Id'],
+  optionsSuccessStatus: 200,
+  maxAge: 86400, // 预检请求缓存24小时
+};
+app.use(cors(corsOptions));
+
+// 预检请求处理 - 确保所有路由都支持OPTIONS
+app.options('*', cors(corsOptions));
+
+// ========== 请求频率限制 ==========
+const rateLimit = require('express-rate-limit');
+const isDev = process.env.NODE_ENV !== 'production';
+
+// [P0修复] 全局限流器选项：显式 disable trust proxy 验证，避免 ERR_ERL_PERMISSIVE_TRUST_PROXY
+// 当 Nginx 转发请求时会设置 X-Forwarded-For，rate-limit 会检查 trust proxy 配置
+const _limiterOptions = {
+  windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 60 * 1000,
+  standardHeaders: true,
+  legacyHeaders: false,
+  validate: false, // [P0修复] 禁用 trust proxy 验证检查，避免500错误
+};
+
+// 限流值统一从 .env 读取，fallback 为生产推荐值
+// 认证限流器
+const authLimiter = rateLimit({
+  ..._limiterOptions,
+  max: parseInt(process.env.RATE_LIMIT_AUTH_MAX_REQUESTS) || 100,
+  message: { success: false, message: '认证请求过于频繁，请稍后再试' },
+});
+
+// 通用API限流器
+const apiLimiter = rateLimit({
+  ..._limiterOptions,
+  max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || 200,
+  message: { success: false, message: '请求过于频繁，请稍后再试' },
+});
+
+// 支付限流器（更严格）
+const paymentLimiter = rateLimit({
+  ..._limiterOptions,
+  max: parseInt(process.env.RATE_LIMIT_PAYMENT_MAX_REQUESTS) || 60,
+  message: { success: false, message: '支付请求过于频繁，请稍后再试' },
+});
+
+// 管理后台限流器
+const adminLimiter = rateLimit({
+  ..._limiterOptions,
+  max: parseInt(process.env.RATE_LIMIT_ADMIN_MAX_REQUESTS) || 100,
+  message: { success: false, message: '管理请求过于频繁，请稍后再试' },
+});
+
+// 上传限流器（最严格）
+const uploadLimiter = rateLimit({
+  ..._limiterOptions,
+  max: parseInt(process.env.RATE_LIMIT_UPLOAD_MAX_REQUESTS) || 30,
+  message: { success: false, message: '上传请求过于频繁，请稍后再试' },
+});
+
+// ========== HTTP请求日志 (Morgan) ==========
+app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
+
+// JSON 解析（限制请求体大小）
+app.use(express.json({ limit: '1mb' }));
+app.use(express.urlencoded({ extended: true, limit: '1mb' }));
+
+// 健康检查（不限流）
+app.get('/health', (req, res) => {
+  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
+// ========== API路由 ==========
+app.use('/api/auth', authLimiter, authRoutes);
+app.use('/api/rider', apiLimiter, riderRoutes);
+app.use('/api/rider', apiLimiter, riderPoolRoutes.router);  // 三池派单系统
+app.use('/api/eta', apiLimiter, etaRoutes);  // 智能ETA系统
+app.use('/api/prep', apiLimiter, prepTimeRoutes);  // 出餐时间管理
+app.use('/api/merchant', apiLimiter, merchantRoutes);
+app.use('/api/user', apiLimiter, userRoutes);
+app.use('/api/admin', adminLimiter, adminRoutes);
+app.use('/api/upload', uploadLimiter, uploadRoutes);
+app.use('/api/reviews', apiLimiter, reviewRoutes);
+app.use('/api/refunds', apiLimiter, refundRoutes);
+app.use('/api/payment', paymentLimiter, paymentRoutes);
+app.use('/api/admin/analytics', adminLimiter, analyticsRoutes);
+app.use('/api/admin/tickets', adminLimiter, ticketRoutes);
+app.use('/api/version', apiLimiter, versionRoutes.router);   // 版本检查（强制更新）
+app.use('/api/rider-map', apiLimiter, riderMapRoutes);  // 骑手地图数据联动
+app.use('/api', apiLimiter, publicRoutes);
+// 黑名单管理 - 兼容前端直接调用 /api/blacklist/* 路径
+const blacklistPool = require('./config/database').pool;
+app.all('/api/blacklist/list', async (req, res) => {
+  try {
+    const [rows] = await blacklistPool.query('SELECT id, blocked_type, blocked_id, blocked_name, blocked_phone, reason, blocker_type, created_at FROM blacklist ORDER BY created_at DESC');
+    res.json({ success: true, data: rows });
+  } catch (e) { res.status(500).json({ success: false, message: '服务器错误' }); }
+});
+app.all('/api/blacklist/quota', async (req, res) => {
+  try {
+    const [rows] = await blacklistPool.query("SELECT blocked_type, COUNT(*) as count FROM blacklist GROUP BY blocked_type");
+    res.json({ success: true, data: rows });
+  } catch (e) { res.status(500).json({ success: false, message: '服务器错误' }); }
+});
+app.post('/api/blacklist/remove', async (req, res) => {
+  try {
+    const { blocked_type, blocked_id } = req.body;
+    await blacklistPool.query('DELETE FROM blacklist WHERE blocked_type = ? AND blocked_id = ?', [blocked_type, blocked_id]);
+    res.json({ success: true, message: '已取消拉黑' });
+  } catch (e) { res.status(500).json({ success: false, message: '服务器错误' }); }
+});
+
+
+
+// ========== 全局错误处理 ==========
+app.use(globalErrorHandler);
+
+// 404处理
+app.use((req, res) => {
+  res.status(404).json({ success: false, message: '接口不存在' });
+});
+
+// ========== 启动服务器 ==========
+async function start() {
+  let server;
+  try {
+    await initDatabase();
+    console.log('Database initialized');
+
+    // 设置未捕获异常处理
+    setupUnhandledRejectionHandler();
+
+    // 创建HTTP服务器
+    server = http.createServer(app);
+
+    // 初始化 WebSocket
+    initWebSocket(server);
+
+    server.listen(PORT, '0.0.0.0', () => {
+      console.log(`快驴后端服务已启动: http://0.0.0.0:${PORT}`);
+      console.log(`环境: ${process.env.NODE_ENV || 'development'}`);
+      if (isDevOrWildcard) {
+        if (process.env.NODE_ENV === 'production') {
+          console.error('');
+          console.error('╔══════════════════════════════════════════════════════════╗');
+          console.error('║  ⚠️  安全警告: 生产环境 CORS 允许所有来源!              ║');
+          console.error('║  请在 .env 中配置 ALLOWED_ORIGINS 为具体域名          ║');
+          console.error('║  例如: ALLOWED_ORIGINS=https://yourdomain.com        ║');
+          console.error('╚══════════════════════════════════════════════════════════╝');
+          console.error('');
+        } else {
+          console.warn('WARNING: CORS 允许所有来源，请在生产环境配置 ALLOWED_ORIGINS');
+        }
+      }
+    });
+
+    // 优雅关闭
+    const shutdown = (signal) => {
+      console.log(`\n${signal} 收到，正在优雅关闭服务器...`);
+      server.close(() => {
+        console.log('HTTP 服务器已关闭');
+        process.exit(0);
+      });
+      // 10秒后强制退出
+      setTimeout(() => {
+        console.error('强制关闭：优雅关闭超时');
+        process.exit(1);
+      }, 10000);
+    };
+    process.on('SIGTERM', () => shutdown('SIGTERM'));
+    process.on('SIGINT', () => shutdown('SIGINT'));
+  } catch (error) {
+    console.error('Failed to start server:', error);
+    process.exit(1);
+  }
+}
+
+start();
