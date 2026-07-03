@@ -125,7 +125,7 @@ const uploadLimiter = rateLimit({ ..._limiterOptions, max: parseInt(process.env.
 app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
 app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: true, limit: '1mb' }));
-const { COPYRIGHT } = require("./config/constants");app.use((req, res, next) => {  res.setHeader("X-Copyright", "(C) Xu Yaping All Rights Reserved");  res.setHeader("X-Copyright-Contact", "QQ: 273442662");  next();});
+const { COPYRIGHT } = require("./config/constants");app.use((req, res, next) => {  res.setHeader("X-Copyright", "(C) Zhong Ge All Rights Reserved");  res.setHeader("X-Copyright-Contact", "QQ: 273442662");  next();});
 
 // ========== 健康检查 ==========
 app.get('/health', async (req, res) => {

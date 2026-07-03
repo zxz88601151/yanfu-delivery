@@ -8,8 +8,8 @@
 
 /** 版权声明 - 界面显性版权文案 */
 const COPYRIGHT = {
-  TEXT: '© 徐娅萍  All Rights Reserved',
-  AUTHOR: '徐娅萍',
+  TEXT: '© 中哥  All Rights Reserved',
+  AUTHOR: '中哥',
   CONTACT_QQ: '273442662',
 };
 
