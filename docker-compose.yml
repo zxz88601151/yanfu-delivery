@@ -57,7 +57,4 @@ services:
 volumes:
   mysql_data:
 
----
 
-© 中哥  All Rights Reserved. 商用需联系本人授权
-FP_UUID_31adb5871aea40b8b0c288773f094ab2|FP_AUTHOR_中哥_SN_20260531|FP_HASH_20260531B9F3|FP_ORIGIN_2026_AUTHOR_中哥
