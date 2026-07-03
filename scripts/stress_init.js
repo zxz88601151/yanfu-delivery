@@ -9,7 +9,7 @@ const DB_CONFIG = {
   host: 'localhost', user: 'root',
   password: 'Yanfu@2026!Secure', database: 'kuailv'
 };
-const PASSWORD = 'test123456';
+const PASSWORD = '[测试密码]';
 
 async function main() {
   const conn = await mysql.createConnection(DB_CONFIG);

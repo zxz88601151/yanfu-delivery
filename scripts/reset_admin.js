@@ -8,7 +8,7 @@ const path = require('path');
 const bcrypt = require('bcryptjs');
 
 const ENV_PATH = path.join(__dirname, '..', '.env');
-const NEW_PASSWORD = 'UFiDp&IyrDhzWg62';
+const NEW_PASSWORD = '[管理员密码-请查看.env]';
 const SALT_ROUNDS = 10;
 
 async function main() {

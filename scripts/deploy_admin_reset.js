@@ -3,14 +3,14 @@
  * 
  * 用法:
  *   服务器上运行: node scripts/deploy_admin_reset.js
- *   或单命令: node -e "require('bcryptjs').hash('UFiDp&IyrDhzWg62',10).then(h=>{const fs=require('fs'),p=require('path');let e=fs.readFileSync(p.join(__dirname,'.env'),'utf8').replace(/^ADMIN_PASSWORD=.*$/m,'ADMIN_PASSWORD='+h);fs.writeFileSync(p.join(__dirname,'.env'),e);console.log('✅ 管理员密码已更新');console.log('用户: admin / 密码: UFiDp&IyrDhzWg62')})"
+ *   或单命令: node -e "require('bcryptjs').hash('[管理员密码-请查看.env]',10).then(h=>{const fs=require('fs'),p=require('path');let e=fs.readFileSync(p.join(__dirname,'.env'),'utf8').replace(/^ADMIN_PASSWORD=.*$/m,'ADMIN_PASSWORD='+h);fs.writeFileSync(p.join(__dirname,'.env'),e);console.log('✅ 管理员密码已更新');console.log('用户: admin / 密码: [管理员密码-请查看.env]')})"
  */
 
 const fs = require('fs');
 const path = require('path');
 const bcrypt = require('bcryptjs');
 
-const NEW_PASSWORD = 'UFiDp&IyrDhzWg62';
+const NEW_PASSWORD = '[管理员密码-请查看.env]';
 const ENV_FILE = path.join(__dirname, '..', '.env');
 
 async function reset() {
